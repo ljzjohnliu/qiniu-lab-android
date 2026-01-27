@@ -14,13 +14,13 @@ import android.widget.Toast;
 
 import com.ipaulpro.afilechooser.utils.FileUtils;
 import com.qiniu.android.http.ResponseInfo;
+import com.qiniu.android.storage.FileRecorder;
 import com.qiniu.android.storage.KeyGenerator;
 import com.qiniu.android.storage.UpCancellationSignal;
 import com.qiniu.android.storage.UpCompletionHandler;
 import com.qiniu.android.storage.UpProgressHandler;
 import com.qiniu.android.storage.UploadManager;
 import com.qiniu.android.storage.UploadOptions;
-import com.qiniu.android.storage.persistent.FileRecorder;
 import com.qiniu.android.utils.AsyncRun;
 import com.qiniu.android.utils.UrlSafeBase64;
 import com.qiniu.qiniulab.R;
@@ -198,6 +198,11 @@ public class ResumableUploadWithoutKeyActivity extends ActionBarActivity {
                                         Log.e("QiniuLab", e.getMessage());
                                     }
                                     return recorderName;
+                                }
+
+                                @Override
+                                public String gen(String s, String s1) {
+                                    return null;
                                 }
                             });
                 } catch (IOException e) {

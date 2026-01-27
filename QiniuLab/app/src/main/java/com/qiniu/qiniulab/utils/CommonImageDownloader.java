@@ -124,10 +124,11 @@ public class CommonImageDownloader extends BaseImageDownloader {
             }
             return x;
         }
-        try {
-            return dns.query(domain);
-        } catch (IOException e) {
-            throw new UnknownHostException(e.getMessage());
-        }
+//        try {
+//            return dns.query(domain);
+//        } catch (IOException e) {
+//            throw new UnknownHostException(e.getMessage());
+//        }
+        return null;
     }
 }

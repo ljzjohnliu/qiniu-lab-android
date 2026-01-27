@@ -15,12 +15,20 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.qiniu.android.common.AutoZone;
 import com.qiniu.android.http.ResponseInfo;
+import com.qiniu.android.http.UrlConverter;
+import com.qiniu.android.storage.Configuration;
+import com.qiniu.android.storage.FileRecorder;
+import com.qiniu.android.storage.GlobalConfiguration;
+import com.qiniu.android.storage.KeyGenerator;
+import com.qiniu.android.storage.Recorder;
 import com.qiniu.android.storage.UpCompletionHandler;
 import com.qiniu.android.storage.UpProgressHandler;
 import com.qiniu.android.storage.UploadManager;
 import com.qiniu.android.storage.UploadOptions;
 import com.qiniu.android.utils.AsyncRun;
+import com.qiniu.android.utils.Utils;
 import com.qiniu.qiniulab.R;
 import com.qiniu.qiniulab.config.QiniuLabConfig;
 import com.qiniu.qiniulab.utils.Tools;
@@ -29,6 +37,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.IOException;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -44,7 +53,8 @@ public class MainActivity extends AppCompatActivity {
     EditText filePathEdt;
     EditText sliceSizeEdt;
 
-    private UploadManager uploadManager;
+    private UploadManager simpleUploadManager;
+    private UploadManager multiUploadManager;
     private String videoUploadToken;
     private String videoDomain;
     private String imgUploadToken;
@@ -64,6 +74,9 @@ public class MainActivity extends AppCompatActivity {
         filePathEdt = (EditText) findViewById(R.id.file_path);
         sliceSizeEdt = (EditText) findViewById(R.id.slice_size);
         requestPermissions();
+
+        // 关闭 DNS 预解析
+        GlobalConfiguration.getInstance().isDnsOpen = false;
     }
 
     private void requestPermissions() {
@@ -218,8 +231,61 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void upload(final boolean isVideo, final boolean isMulti, final String uploadToken, final String domain) {
-        if (this.uploadManager == null) {
-            this.uploadManager = new UploadManager();
+        if (isMulti) {
+            if (this.simpleUploadManager == null) {
+                this.simpleUploadManager = new UploadManager();
+            }
+        } else {
+            if (this.multiUploadManager == null) {
+                // 定义分片上传时，断点续传信息保存的 Recorder
+                Recorder recorder = null;
+                try {
+                    recorder = new FileRecorder(Utils.sdkDirectory() + "/recorder");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                // 断点续传信息保存时使用的 key 的生成器，根据 key 可以获取相应文件的上传信息
+                // 需要确保每个文件的 key 是唯一的，下面为默认值
+                // 可以自定义，也可以不配置（keyGenerator 参数可以不传）
+                KeyGenerator keyGenerator = new KeyGenerator() {
+                    @Override
+                    public String gen(String key, File file) {
+                        return key + "_._" + new StringBuffer(file.getAbsolutePath()).reverse();
+                    }
+                    @Override
+                    public String gen(String key, String sourceId) {
+                        if (sourceId == null) {
+                            sourceId = "";
+                        }
+                        return key + "_._" + sourceId;
+                    }
+                };
+                Configuration configuration = new Configuration.Builder()
+                        .zone(new AutoZone())              // 配置上传区域，使用 AutoZone
+                        .recorder(recorder, keyGenerator)  // 文件分片上传时断点续传信息保存，表单上传此配置无效
+//                        .proxy(proxy)
+                        .useHttps(false)
+                        .chunkSize(4*1024*1024) // 文件采用分片上传时，分片大小为 4MB
+                        .putThreshold(4 * 1024 * 1024) // 分片上传阈值：4MB，大于 4MB 采用分片上传，小于 4MB 采用表单上传
+                        .connectTimeout(10) // 请求连接超时 10s
+//                        .writeTimeout(30) // 请求写超时 30s
+                        .responseTimeout(10) // 请求响应超时 10s
+                        .retryMax(1) // 单个域名/IP请求失败后最大重试次数为 1 次
+                        .retryInterval(500) // 重试时间间隔
+                        .allowBackupHost(true) // 是否使用备用域名进行重试
+                        .urlConverter(new UrlConverter() {
+                            @Override
+                            public String convert(String url) {
+                                // 公有云不可配置
+                                return url;
+                            }
+                        })
+                        .useConcurrentResumeUpload(true)  // 开启并发分片上传
+                        .concurrentTaskCount(3)           // 使用并发分片上传时，一个文件并发上传的分片个数
+                        .resumeUploadVersion(Configuration.RESUME_UPLOAD_VERSION_V2) // 使用分片 V2
+                        .build();
+                this.multiUploadManager = new UploadManager(configuration);
+            }
         }
         File uploadFile = new File(this.uploadFilePath);
         UploadOptions uploadOptions = new UploadOptions(null, null, false,
@@ -234,8 +300,9 @@ public class MainActivity extends AppCompatActivity {
         this.uploadFileLength = fileLength;
         this.uploadLastTimePoint = startTime;
         this.uploadLastOffset = 0;
+        UploadManager uploadManager = isMulti ? multiUploadManager : simpleUploadManager;
 
-        this.uploadManager.put(uploadFile, null, uploadToken,
+        uploadManager.put(uploadFile, null, uploadToken,
                 new UpCompletionHandler() {
                     @Override
                     public void complete(String key, ResponseInfo respInfo,
