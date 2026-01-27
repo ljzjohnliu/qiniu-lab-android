@@ -159,10 +159,7 @@ public class QuickStartVideoExampleActivity extends ActionBarActivity {
                     AsyncRun.runInMain(new Runnable() {
                         @Override
                         public void run() {
-                            Toast.makeText(
-                                    context,
-                                    context.getString(R.string.qiniu_get_upload_token_failed),
-                                    Toast.LENGTH_LONG).show();
+                            Toast.makeText(context, context.getString(R.string.qiniu_get_upload_token_failed), Toast.LENGTH_LONG).show();
                         }
                     });
                 } finally {
