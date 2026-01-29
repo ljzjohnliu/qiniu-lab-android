@@ -11,7 +11,11 @@ import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -38,6 +42,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -50,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
 
     TextView videoDomainTokenTxt;
     TextView imgDomainTokenTxt;
+    Switch partSwitch;
     EditText filePathEdt;
     EditText sliceSizeEdt;
 
@@ -64,6 +70,43 @@ public class MainActivity extends AppCompatActivity {
     private long uploadFileLength;
     private String uploadFilePath;
 
+    private String[] fileSizeArray = {"5M", "10M", "20M", "50M", "80M", "150M", "400M", "800M", "1G", "10G"};
+    private String fileSizeType;
+    private String[] picFilePaths;
+    private String[] videoFilePaths;
+
+    class MySelectedListener implements AdapterView.OnItemSelectedListener {
+
+        @Override
+        public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+            Toast.makeText(MainActivity.this, "您选择的是：" + fileSizeArray[i], Toast.LENGTH_SHORT).show();
+            fileSizeType = fileSizeArray[i];
+
+            String picFolderPath = "/mnt/sdcard/picture/" + fileSizeArray[i];
+            Log.d(TAG, "onItemSelected: picFolderPath = " + picFolderPath);
+            picFilePaths = MyUtil.traverseFolder(new File(picFolderPath));
+            Log.d(TAG, "onItemSelected: picFilePaths = " + Arrays.toString(picFilePaths));
+
+            String videoFolderPath = "/mnt/sdcard/video/" + fileSizeArray[i];
+            Log.d(TAG, "onItemSelected: videoFolderPath = " + videoFolderPath);
+            videoFilePaths = MyUtil.traverseFolder(new File(videoFolderPath));
+            Log.d(TAG, "onItemSelected: videoFilePaths = " + Arrays.toString(videoFilePaths));
+        }
+
+        @Override
+        public void onNothingSelected(AdapterView<?> adapterView) {
+
+        }
+    }
+
+    private void initSpinner() {
+        ArrayAdapter<String> starAdapter = new ArrayAdapter<>(this, R.layout.item_dropdown, fileSizeArray);
+        Spinner sp = (Spinner)findViewById(R.id.file_size_spinner);
+        sp.setAdapter(starAdapter);
+        sp.setSelection(0);
+        sp.setOnItemSelectedListener(new MySelectedListener());
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -71,8 +114,10 @@ public class MainActivity extends AppCompatActivity {
         context = this;
         videoDomainTokenTxt = (TextView) findViewById(R.id.video_domain);
         imgDomainTokenTxt = (TextView) findViewById(R.id.img_domain);
+        partSwitch = (Switch) findViewById(R.id.switch_part);
         filePathEdt = (EditText) findViewById(R.id.file_path);
         sliceSizeEdt = (EditText) findViewById(R.id.slice_size);
+        initSpinner();
         requestPermissions();
 
         // 关闭 DNS 预解析
@@ -180,48 +225,70 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    public void videoSimpleUpload(View view) {
-        uploadFile(true, false);
+    public void videoUpload(View view) {
+        boolean isSingleFile = true;
+        if (!isSingleFile) {
+            String[] filePaths = videoFilePaths;
+            if (filePaths == null) {
+                Toast.makeText(MainActivity.this, "Picture filePaths is null!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            for (int i = 0; i < filePaths.length; i++) {
+                Log.d(TAG, "MainActivity, videoUpload: uploadFilePath = " + uploadFilePath + ", filePaths[" + i + "] = " + filePaths[i]);
+                uploadFile(filePaths[i], true, partSwitch.isChecked());
+            }
+        } else {
+            uploadFilePath = filePathEdt.getText().toString();
+            uploadFilePath = "/mnt/sdcard/test_gif.gif";
+            Log.d(TAG, "MainActivity, videoUpload: uploadFilePath = " + uploadFilePath);
+            uploadFile(uploadFilePath, true, partSwitch.isChecked());
+        }
     }
 
-    public void videoMultiUpload(View view) {
-        uploadFile(true, true);
+    public void picUpload(View view) {
+        boolean isSingleFile = true;
+        if (!isSingleFile) {
+            String[] filePaths = picFilePaths;
+            if (filePaths == null) {
+                Toast.makeText(MainActivity.this, "Picture filePaths is null!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            for (int i = 0; i < filePaths.length; i++) {
+                Log.d(TAG, "MainActivity, picUpload: uploadFilePath = " + uploadFilePath + ", filePaths[" + i + "] = " + filePaths[i]);
+                uploadFile(filePaths[i], false, partSwitch.isChecked());
+            }
+        } else {
+            uploadFilePath = filePathEdt.getText().toString();
+            uploadFilePath = "/mnt/sdcard/test_gif.gif";
+            Log.d(TAG, "MainActivity, picUpload: uploadFilePath = " + uploadFilePath);
+            uploadFile(uploadFilePath, false, partSwitch.isChecked());
+        }
     }
 
-    public void imgSimpleUpload(View view) {
-        uploadFile(false, false);
-    }
-
-    public void imgMultiUpload(View view) {
-        uploadFile(false, true);
-    }
-
-    public void uploadFile(final boolean isVideo, final boolean isMulti) {
+    public void uploadFile(final String filePath, final boolean isVideo, final boolean isMultiPart) {
         if (TextUtils.isEmpty(isVideo ? videoUploadToken : imgUploadToken)) {
-            Toast.makeText(context, isVideo ? "Video" : "Img" + " UploadToken is null！", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, (isVideo ? "Video" : "Img") + " UploadToken is null！", Toast.LENGTH_SHORT).show();
             return;
         }
         if (TextUtils.isEmpty(isVideo ? videoDomain : imgDomain)) {
-            Toast.makeText(context, isVideo ? "Video" : "Img" + " Domain is null！", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, (isVideo ? "Video" : "Img") + " Domain is null！", Toast.LENGTH_SHORT).show();
             return;
         }
-        uploadFilePath = filePathEdt.getText().toString();
-        uploadFilePath = "/mnt/sdcard/test_gif.gif";
-        Log.d(TAG, "MainActivity, simpleUpload:  uploadFilePath = " + uploadFilePath);
-        if (TextUtils.isEmpty(uploadFilePath)) {
-            Toast.makeText(context, "请输入需要上传文件路径！", Toast.LENGTH_LONG).show();
+
+        if (TextUtils.isEmpty(filePath)) {
+            Toast.makeText(context, "上传文件路径为空！", Toast.LENGTH_LONG).show();
             return;
         }
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    upload(isVideo, isMulti, isVideo ? videoUploadToken : imgUploadToken, isVideo ? videoDomain : imgDomain);
+                    upload(filePath, isVideo, isMultiPart, isVideo ? videoUploadToken : imgUploadToken, isVideo ? videoDomain : imgDomain);
                 } catch (final Exception e) {
                     AsyncRun.runInMain(new Runnable() {
                         @Override
                         public void run() {
-                            Toast.makeText(context, e.getMessage(), Toast.LENGTH_LONG).show();
+                            Toast.makeText(context, e.getMessage(), Toast.LENGTH_SHORT).show();
                         }
                     });
                     Log.e(QiniuLabConfig.LOG_TAG, e.getMessage());
@@ -230,8 +297,8 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    private void upload(final boolean isVideo, final boolean isMulti, final String uploadToken, final String domain) {
-        if (isMulti) {
+    private void upload(String filePath, final boolean isVideo, final boolean isMultiPart, final String uploadToken, final String domain) {
+        if (!isMultiPart) {
             if (this.simpleUploadManager == null) {
                 this.simpleUploadManager = new UploadManager();
             }
@@ -283,11 +350,11 @@ public class MainActivity extends AppCompatActivity {
                         .useConcurrentResumeUpload(true)  // 开启并发分片上传
                         .concurrentTaskCount(3)           // 使用并发分片上传时，一个文件并发上传的分片个数
                         .resumeUploadVersion(Configuration.RESUME_UPLOAD_VERSION_V2) // 使用分片 V2
-                        .build();
+                        .buildV2();
                 this.multiUploadManager = new UploadManager(configuration);
             }
         }
-        File uploadFile = new File(this.uploadFilePath);
+        File uploadFile = new File(filePath);
         UploadOptions uploadOptions = new UploadOptions(null, null, false,
                 new UpProgressHandler() {
                     @Override
@@ -300,7 +367,7 @@ public class MainActivity extends AppCompatActivity {
         this.uploadFileLength = fileLength;
         this.uploadLastTimePoint = startTime;
         this.uploadLastOffset = 0;
-        UploadManager uploadManager = isMulti ? multiUploadManager : simpleUploadManager;
+        UploadManager uploadManager = isMultiPart ? multiUploadManager : simpleUploadManager;
 
         uploadManager.put(uploadFile, null, uploadToken,
                 new UpCompletionHandler() {
@@ -308,7 +375,7 @@ public class MainActivity extends AppCompatActivity {
                     public void complete(String key, ResponseInfo respInfo,
                                          JSONObject jsonData) {
                         long lastMillis = System.currentTimeMillis() - startTime;
-                        Log.d(TAG, "complete: upload cost is:" + lastMillis);
+                        Log.d(TAG, "complete: upload key = " + key + "，respInfo is:" + respInfo + "，jsonData is:" + jsonData + "，cost is:" + lastMillis);
                         if (respInfo.isOK()) {
                             try {
                                 String fileKey = jsonData.getString("key");
