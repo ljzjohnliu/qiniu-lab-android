@@ -236,23 +236,16 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(context, "Domain is null！", Toast.LENGTH_SHORT).show();
             return;
         }
-        boolean isSingleFile = false;
-        if (!isSingleFile) {
-            String[] filePaths = videoFilePaths;
-            if (filePaths == null) {
-                Toast.makeText(MainActivity.this, "Picture filePaths is null!", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            sucCount = 0;
-            totalCount = filePaths.length;
-            totalCostTime = 0;
-            updateResult("视频" + fileSizeType, 0, 0, !isSingleFile ? totalCount : 1);
-            executeTaskByOrder(true, filePaths, 0);
-        } else {
-            uploadFilePath = "/mnt/sdcard/test_gif.gif";
-            Log.d(TAG, "MainActivity, videoUpload: uploadFilePath = " + uploadFilePath);
-            uploadFile(uploadFilePath, true, isEnablePart);
+        String[] filePaths = videoFilePaths;
+        if (filePaths == null) {
+            Toast.makeText(MainActivity.this, "Picture filePaths is null!", Toast.LENGTH_SHORT).show();
+            return;
         }
+        sucCount = 0;
+        totalCount = filePaths.length;
+        totalCostTime = 0;
+        updateResult("视频" + fileSizeType, 0, 0, totalCount);
+        executeTaskByOrder(true, filePaths, 0);
     }
 
     public void picUpload(View view) {
@@ -264,23 +257,16 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(context, "Domain is null！", Toast.LENGTH_SHORT).show();
             return;
         }
-        boolean isSingleFile = false;
-        if (!isSingleFile) {
-            String[] filePaths = picFilePaths;
-            if (filePaths == null) {
-                Toast.makeText(MainActivity.this, "Picture filePaths is null!", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            sucCount = 0;
-            totalCount = filePaths.length;
-            totalCostTime = 0;
-            updateResult("图片" + fileSizeType, 0, 0, !isSingleFile ? totalCount : 1);
-            executeTaskByOrder(false, filePaths, 0);
-        } else {
-            uploadFilePath = "/mnt/sdcard/test_gif.gif";
-            Log.d(TAG, "MainActivity, picUpload: uploadFilePath = " + uploadFilePath);
-            uploadFile(uploadFilePath, false, isEnablePart);
+        String[] filePaths = picFilePaths;
+        if (filePaths == null) {
+            Toast.makeText(MainActivity.this, "Picture filePaths is null!", Toast.LENGTH_SHORT).show();
+            return;
         }
+        sucCount = 0;
+        totalCount = filePaths.length;
+        totalCostTime = 0;
+        updateResult("图片" + fileSizeType, 0, 0, totalCount);
+        executeTaskByOrder(false, filePaths, 0);
     }
 
     public void executeTaskByOrder(final boolean isVideo, final String[] filePaths, int position){
@@ -342,58 +328,5 @@ public class MainActivity extends AppCompatActivity {
                 }
             }).start();
         }
-    }
-
-    public void uploadFile(final String filePath, final boolean isVideo, final boolean isMultiPart) {
-        if (TextUtils.isEmpty(filePath)) {
-            Toast.makeText(context, "上传文件路径为空！", Toast.LENGTH_LONG).show();
-            return;
-        }
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    upload(filePath, isVideo, isMultiPart, uploadToken, domain);
-                } catch (final Exception e) {
-                    AsyncRun.runInMain(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(context, e.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                    Log.e(QiniuLabConfig.LOG_TAG, e.getMessage());
-                }
-            }
-        }).start();
-    }
-
-    private void upload(String filePath, final boolean isVideo, final boolean isMultiPart, final String uploadToken, final String domain) {
-        File uploadFile = new File(filePath);
-        UploadOptions uploadOptions = new UploadOptions(null, null, false,
-                new UpProgressHandler() {
-                    @Override
-                    public void progress(String key, double percent) {
-                        Log.d(TAG, "progress: key = " + key + ", percent = " + percent);
-                    }
-                }, null);
-        final long startTime = System.currentTimeMillis();
-        final long fileLength = uploadFile.length();
-        UploadManager uploadManager = isMultiPart ? multiUploadManager : simpleUploadManager;
-
-        uploadManager.put(uploadFile, null, uploadToken,
-                new UpCompletionHandler() {
-                    @Override
-                    public void complete(String key, ResponseInfo respInfo,
-                                         JSONObject jsonData) {
-                        long lastMillis = System.currentTimeMillis() - startTime;
-                        Log.d(TAG, "complete: upload key = " + key + "，respInfo is:" + respInfo + "，jsonData is:" + jsonData + "，cost is:" + lastMillis);
-                        if (respInfo.isOK()) {
-
-                        } else {
-                            Toast.makeText(context, context.getString(R.string.qiniu_upload_file_failed), Toast.LENGTH_LONG).show();
-                            Log.e(QiniuLabConfig.LOG_TAG, respInfo.toString());
-                        }
-                    }
-                }, uploadOptions);
     }
 }
