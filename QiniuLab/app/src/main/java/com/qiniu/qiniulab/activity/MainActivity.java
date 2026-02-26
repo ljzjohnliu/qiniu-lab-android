@@ -132,6 +132,7 @@ public class MainActivity extends AppCompatActivity {
             FixedZone zone = FixedZone.createWithRegionId("z2");
             Configuration config = new Configuration.Builder()
                     .zone(zone)
+                    .useHttps(true)
                     .buildV2();
             simpleUploadManager = new UploadManager(config);
         } else {
@@ -149,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
 //                    .zone(new AutoZone())              // 配置上传区域，使用 AutoZone
                     .zone(zone)
                     .recorder(recorder)
-                    .useHttps(false)
+                    .useHttps(true)
                     .chunkSize(sliceSize) // 文件采用分片上传时，分片大小为 4MB
                     .putThreshold(4 * 1024 * 1024) // 分片上传阈值：4MB，大于 4MB 采用分片上传，小于 4MB 采用表单上传
 //                    .connectTimeout(10) // 请求连接超时 10s
