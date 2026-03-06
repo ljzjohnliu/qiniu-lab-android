@@ -48,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
     private UploadManager simpleUploadManager;
     private UploadManager multiUploadManager;
 
-    private String uploadToken = "j4uAjPplb7oCAtazVj_UQP1XH9anZSv-CJ_iy2BX:9wwpSBjKaHMOj2hFp2ygMi_CPgU=:eyJzY29wZSI6InVwbG9hZHRlc3QxMTEiLCJkZWFkbGluZSI6MTc3MjcwMzEzN30=";
+    private String uploadToken = "j4uAjPplb7oCAtazVj_UQP1XH9anZSv-CJ_iy2BX:X-Jp9OfdYFP1jM4V9fjV7FZvtgk=:eyJzY29wZSI6InVwbG9hZHRlc3QxMTEiLCJkZWFkbGluZSI6MTc3NTM3Mzc2MH0=";
     private String domain = "t9v4tja4n.hn-bkt.clouddn.com";
     private String uploadFilePath;
 
